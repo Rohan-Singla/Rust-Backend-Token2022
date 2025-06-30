@@ -1,21 +1,25 @@
 mod models;
 mod routes;
-
 mod state;
 
 use axum::Router;
+use dotenvy::dotenv;
 use routes::keypair::keypair_routes;
-use std::net::SocketAddr;
+// use routes::token::token_routes;
+use tokio::net::TcpListener;
+use tracing_subscriber;
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new().nest("/keypair", keypair_routes());
+    dotenv().ok();
+    tracing_subscriber::fmt::init();
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-    println!("🚀 Server running at http://{}", addr);
+    let app = Router::new()
+        .nest("/keypair", keypair_routes());
+        // .merge(token_routes()); 
 
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    println!("🚀 Server running at http://localhost:3000");
+
+    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
