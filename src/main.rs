@@ -2,7 +2,7 @@ mod models;
 mod routes;
 mod state;
 
-use axum::Router;
+use axum::{Router, routing::get};
 use dotenvy::dotenv;
 use routes::keypair::keypair_routes;
 // use routes::token::token_routes;
@@ -15,10 +15,10 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     let app = Router::new()
+        .route("/", get(|| async { "✅ Server is live!" })) // 👈 add this
         .nest("/keypair", keypair_routes());
-        // .merge(token_routes()); // Uncomment this once token routes are ready
+        // .merge(token_routes());
 
-    // Use Railway's PORT env or fallback to 3000 locally
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
 
