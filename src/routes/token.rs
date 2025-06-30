@@ -1,5 +1,5 @@
-use axum::{routing::post, Json, Router};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use axum::{Json, Router, routing::post};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use solana_sdk::pubkey::Pubkey;
 use spl_token::instruction::initialize_mint;
 use std::str::FromStr;
@@ -20,14 +20,8 @@ async fn handle_create_token(
     let mint = Pubkey::from_str(&payload.mint)
         .map_err(|_| error_response("Invalid base58 mint address"))?;
 
-    let instruction = initialize_mint(
-        &spl_token::ID,
-        &mint,
-        &mint_auth,
-        None,
-        payload.decimals,
-    )
-    .map_err(|_| error_response("Unable to create initialize_mint instruction"))?;
+    let instruction = initialize_mint(&spl_token::ID, &mint, &mint_auth, None, payload.decimals)
+        .map_err(|_| error_response("Unable to create initialize_mint instruction"))?;
 
     let account_meta = instruction
         .accounts

@@ -7,3 +7,7 @@ pub struct CreateTokenRequest {
     pub mint: String,
     pub decimals: u8,
 }
+pub struct SignMessageRequest {
+    pub message: String,
+    pub secret: String,
+}
