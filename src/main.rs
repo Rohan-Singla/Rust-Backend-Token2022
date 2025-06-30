@@ -1,29 +1,27 @@
 mod models;
 mod routes;
-mod state;
 
-use axum::{Router, routing::get};
+use axum::{routing::get, Router};
 use dotenvy::dotenv;
-use routes::keypair::keypair_routes;
-// use routes::token::token_routes;
 use tokio::net::TcpListener;
 use tracing_subscriber;
+use crate::routes::{keypair::keypair_routes, token::token_routes};
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
     tracing_subscriber::fmt::init();
 
-    let app = Router::new()
-        .route("/", get(|| async { "✅ Server is live!" })) // 👈 add this
-        .nest("/keypair", keypair_routes());
-        // .merge(token_routes());
+    let router = Router::new()
+        .route("/", get(|| async { "🟢 API is up and running!" }))
+        .nest("/keypair", keypair_routes())
+        .merge(token_routes());
 
-    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
-    let addr = format!("0.0.0.0:{}", port);
+    let port = std::env::var("PORT").unwrap_or_else(|_| String::from("3000"));
+    let socket_address = format!("0.0.0.0:{}", port);
 
-    println!("🚀 Server running at http://{}", addr);
+    println!("🌐 Listening at http://{}", socket_address);
 
-    let listener = TcpListener::bind(&addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = TcpListener::bind(&socket_address).await.expect("Failed to bind port");
+    axum::serve(listener, router).await.expect("Server crashed");
 }
