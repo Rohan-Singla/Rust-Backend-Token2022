@@ -16,10 +16,14 @@ async fn main() {
 
     let app = Router::new()
         .nest("/keypair", keypair_routes());
-        // .merge(token_routes()); 
+        // .merge(token_routes()); // Uncomment this once token routes are ready
 
-    println!("🚀 Server running at http://localhost:3000");
+    // Use Railway's PORT env or fallback to 3000 locally
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let addr = format!("0.0.0.0:{}", port);
 
-    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    println!("🚀 Server running at http://{}", addr);
+
+    let listener = TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
