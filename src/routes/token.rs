@@ -1,14 +1,16 @@
 use axum::{Json, Router, routing::post};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use solana_sdk::pubkey::Pubkey;
-use spl_token::instruction::initialize_mint;
+use solana_sdk::{pubkey::Pubkey, instruction::Instruction};
+use spl_token::instruction::{initialize_mint, mint_to};
 use std::str::FromStr;
 
 use crate::models::response::{ErrorResponse, SuccessResponse};
-use crate::models::token::CreateTokenRequest;
+use crate::models::token::{CreateTokenRequest, MintRequest};
 
 pub fn token_routes() -> Router {
-    Router::new().route("/token/create", post(handle_create_token))
+    Router::new()
+        .route("/token/create", post(handle_create_token))
+        .route("/token/mint", post(handle_mint_token))
 }
 
 async fn handle_create_token(
@@ -23,6 +25,35 @@ async fn handle_create_token(
     let instruction = initialize_mint(&spl_token::ID, &mint, &mint_auth, None, payload.decimals)
         .map_err(|_| error_response("Unable to create initialize_mint instruction"))?;
 
+    Ok(Json(build_success_response(instruction)))
+}
+
+async fn handle_mint_token(
+    Json(payload): Json<MintRequest>,
+) -> Result<Json<SuccessResponse<serde_json::Value>>, Json<ErrorResponse>> {
+    let mint = Pubkey::from_str(&payload.mint)
+        .map_err(|_| error_response("Invalid base58 mint address"))?;
+
+    let dest = Pubkey::from_str(&payload.destination)
+        .map_err(|_| error_response("Invalid base58 destination address"))?;
+
+    let auth = Pubkey::from_str(&payload.authority)
+        .map_err(|_| error_response("Invalid base58 authority address"))?;
+
+    let instruction: Instruction = mint_to(
+        &spl_token::ID,
+        &mint,
+        &dest,
+        &auth,
+        &[],
+        payload.amount,
+    )
+    .map_err(|_| error_response("Unable to create mint_to instruction"))?;
+
+    Ok(Json(build_success_response(instruction)))
+}
+
+fn build_success_response(instruction: Instruction) -> SuccessResponse<serde_json::Value> {
     let account_meta = instruction
         .accounts
         .iter()
@@ -43,10 +74,10 @@ async fn handle_create_token(
         "instruction_data": encoded_instruction
     });
 
-    Ok(Json(SuccessResponse {
+    SuccessResponse {
         success: true,
         data: response_body,
-    }))
+    }
 }
 
 fn error_response(msg: &str) -> Json<ErrorResponse> {
