@@ -56,3 +56,24 @@ pub struct VerifyMessageResponse {
     pub message: String,
     pub pubkey: String,
 }
+
+#[derive(Deserialize)]
+pub struct TokenTransferRequest {
+    pub destination: String,
+    pub mint: String,
+    pub owner: String,
+    pub amount: u64,
+}
+
+#[derive(Serialize)]
+pub struct AccountMetaResponse {
+    pub pubkey: String,
+    pub is_signer: bool,
+}
+
+#[derive(Serialize)]
+pub struct InstructionResponse {
+    pub program_id: String,
+    pub accounts: Vec<AccountMetaResponse>,
+    pub instruction_data: String,
+}

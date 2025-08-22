@@ -1,16 +1,20 @@
 use axum::{Json, Router, routing::post};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use solana_sdk::{pubkey::Pubkey, instruction::Instruction};
-use spl_token::instruction::{initialize_mint, mint_to};
+use serde_json::json;
+use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
+use spl_token::instruction::{ initialize_mint, mint_to};
 use std::str::FromStr;
-
+use spl_token::instruction as token_instruction;
 use crate::models::response::{ErrorResponse, SuccessResponse};
-use crate::models::token::{CreateTokenRequest, MintRequest};
+use crate::models::token::{
+    AccountMetaResponse, CreateTokenRequest, InstructionResponse, MintRequest, TokenTransferRequest,
+};
 
 pub fn token_routes() -> Router {
     Router::new()
         .route("/token/create", post(handle_create_token))
         .route("/token/mint", post(handle_mint_token))
+        .route("/send/token", post(handle_token_transfer))
 }
 
 async fn handle_create_token(
@@ -40,17 +44,95 @@ async fn handle_mint_token(
     let auth = Pubkey::from_str(&payload.authority)
         .map_err(|_| error_response("Invalid base58 authority address"))?;
 
-    let instruction: Instruction = mint_to(
-        &spl_token::ID,
-        &mint,
-        &dest,
-        &auth,
-        &[],
-        payload.amount,
-    )
-    .map_err(|_| error_response("Unable to create mint_to instruction"))?;
+    let instruction: Instruction =
+        mint_to(&spl_token::ID, &mint, &dest, &auth, &[], payload.amount)
+            .map_err(|_| error_response("Unable to create mint_to instruction"))?;
 
     Ok(Json(build_success_response(instruction)))
+}
+
+async fn handle_token_transfer(
+    Json(payload): Json<TokenTransferRequest>,
+) -> Json<serde_json::Value> {
+    // Validate inputs
+    let owner = match Pubkey::from_str(&payload.owner) {
+        Ok(pk) => pk,
+        Err(_) => {
+            return Json(json!({
+                "success": false,
+                "error": "Invalid owner pubkey"
+            }));
+        }
+    };
+
+    let destination = match Pubkey::from_str(&payload.destination) {
+        Ok(pk) => pk,
+        Err(_) => {
+            return Json(json!({
+                "success": false,
+                "error": "Invalid destination pubkey"
+            }));
+        }
+    };
+
+    let mint = match Pubkey::from_str(&payload.mint) {
+        Ok(pk) => pk,
+        Err(_) => {
+            return Json(json!({
+                "success": false,
+                "error": "Invalid mint pubkey"
+            }));
+        }
+    };
+
+    if payload.amount == 0 {
+        return Json(json!({
+            "success": false,
+            "error": "Amount must be greater than 0"
+        }));
+    }
+
+    let owner_token_account =
+        spl_associated_token_account::get_associated_token_address(&owner, &mint);
+    let destination_token_account =
+        spl_associated_token_account::get_associated_token_address(&destination, &mint);
+
+    let ix = match token_instruction::transfer(
+        &spl_token::id(),         
+        &owner_token_account,    
+        &destination_token_account,
+        &owner,                   
+        &[],                   
+        payload.amount,            
+    ) {
+        Ok(ix) => ix,
+        Err(_) => {
+            return Json(json!({
+                "success": false,
+                "error": "Failed to build transfer instruction"
+            }));
+        }
+    };
+
+    let accounts: Vec<AccountMetaResponse> = ix
+        .accounts
+        .iter()
+        .map(|acc| AccountMetaResponse {
+            pubkey: acc.pubkey.to_string(),
+            is_signer: acc.is_signer,
+        })
+        .collect();
+
+    let resp = InstructionResponse {
+        program_id: ix.program_id.to_string(),
+        accounts,
+        instruction_data: bs58::encode(ix.data).into_string(),
+    };
+
+    Json(json!({
+        "success": true,
+        "data": resp
+    }))
 }
 
 fn build_success_response(instruction: Instruction) -> SuccessResponse<serde_json::Value> {
