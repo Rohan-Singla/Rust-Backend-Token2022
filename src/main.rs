@@ -1,7 +1,7 @@
 mod models;
 mod routes;
 
-use crate::routes::{keypair::keypair_routes, message::message_routes, token::token_routes};
+use crate::routes::{keypair::keypair_routes, message::message_routes, sol::sol_routes, token::token_routes};
 use axum::{Router, routing::get};
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
@@ -16,7 +16,8 @@ async fn main() {
         .route("/", get(|| async { "🟢 API is up and running!" }))
         .nest("/keypair", keypair_routes())
         .merge(token_routes())
-        .merge(message_routes());
+        .merge(message_routes())
+        .merge(sol_routes());
 
     let port = std::env::var("PORT").unwrap_or_else(|_| String::from("3000"));
     let socket_address = format!("0.0.0.0:{}", port);
