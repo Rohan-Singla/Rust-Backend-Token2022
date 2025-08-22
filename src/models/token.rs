@@ -42,3 +42,17 @@ pub struct ApiResponse<T> {
     pub data: Option<T>,
     pub error: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VerifyMessageRequest {
+    pub message: String,
+    pub signature: String,
+    pub pubkey: String,   
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VerifyMessageResponse {
+    pub valid: bool,
+    pub message: String,
+    pub pubkey: String,
+}
